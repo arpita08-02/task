@@ -24,68 +24,28 @@ jobs:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USERNAME }}
           password: ${{ secrets.VM_PASSWORD }}
-          debug: true
           script: |
-            # Test connection and permissions
-            echo "Connection successful"
-            whoami
-            
+            # Install Node.js if not present
+            if ! command -v node > /dev/null; then
+              curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+            fi
+
             # Kill existing process if running
-            pkill -f "node app.js" || true
-            
-            # Navigate to app directory (create if doesn't exist)
-            mkdir -p ~/api
-            cd ~/api
-            
-            # Clean existing files
+            sudo pkill -f "node app.js" || true
+
+            # Prepare app directory
+            mkdir -p ~/hellouser
+            cd ~/hellouser
+
+            # Clean old files
             rm -rf *
-            
-            # Copy repository files directly instead of git clone
-            # This avoids issues with GitHub token permissions
-            echo "Copying repository files..."
-            
+
+            # Clone repo (private, use token)
+            git clone https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} . || git pull
+
             # Install dependencies
             npm install
-            
-            # Create app.js file
-            echo 'const express = require("express");
-            const app = express();
-            
-            app.get("/sayHello", (req, res) => {
-                try {
-                    res.json({ message: "Hello User" });
-                } catch (error) {
-                    res.status(500).json({ error: "Internal Server Error" });
-                }
-            });
-            
-            app.use((err, req, res, next) => {
-                console.error(err.stack);
-                res.status(500).json({ error: "Internal Server Error" });
-            });
-            
-            const PORT = 80;
-            app.listen(PORT, () => {
-                console.log(`Server running on port ${PORT}`);
-            });' > app.js
-            
-            # Create package.json
-            echo '{
-              "name": "hello-api",
-              "version": "1.0.0",
-              "description": "Simple Hello API",
-              "main": "app.js",
-              "scripts": {
-                "start": "node app.js"
-              },
-              "dependencies": {
-                "express": "^4.18.2"
-              }
-            }' > package.json
-            
-            # Start the application with sudo for port 80
+
+            # Start app on port 80 with sudo and nohup
             sudo nohup node app.js > app.log 2>&1 &
-            
-            # Verify the app is running
-            ps aux | grep node
-            echo "Deployment completed"
