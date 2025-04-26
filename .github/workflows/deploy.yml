@@ -1,0 +1,45 @@
+name: Deploy API
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Deploy to VM
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USERNAME }}
+          password: ${{ secrets.VM_PASSWORD }}
+          script: |
+            # Kill existing process if running
+            pkill -f "node app.js" || true
+            
+            # Navigate to app directory (create if doesn't exist)
+            mkdir -p ~/api
+            cd ~/api
+            
+            # Clean existing files
+            rm -rf *
+            
+            # Clone repository (using GitHub token for private repo)
+            git clone https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} .
+            
+            # Install dependencies
+            npm install
+            
+            # Start the application with sudo for port 80
+            sudo nohup node app.js > app.log 2>&1 &
