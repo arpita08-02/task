@@ -25,27 +25,19 @@ jobs:
           username: ${{ secrets.VM_USERNAME }}
           password: ${{ secrets.VM_PASSWORD }}
           script: |
-            # Install Node.js if not present
-            if ! command -v node > /dev/null; then
-              curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-              sudo apt-get install -y nodejs
-            fi
-
             # Kill existing process if running
-            sudo pkill -f "node app.js" || true
+            pkill -f "node app.js" || true
 
             # Prepare app directory
-            mkdir -p ~/hellouser
-            cd ~/hellouser
+            mkdir -p ~/api
+            cd ~/api
 
             # Clean old files
             rm -rf *
 
             # Clone repo (private, use token)
-            git clone https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} . || git pull
-
-            # Install dependencies
+            git clone https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} .
             npm install
 
-            # Start app on port 80 with sudo and nohup
+            # Start app on port 80 with sudo
             sudo nohup node app.js > app.log 2>&1 &
