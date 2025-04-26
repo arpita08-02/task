@@ -24,7 +24,12 @@ jobs:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USERNAME }}
           password: ${{ secrets.VM_PASSWORD }}
+          debug: true
           script: |
+            # Test connection and permissions
+            echo "Connection successful"
+            whoami
+            
             # Kill existing process if running
             pkill -f "node app.js" || true
             
@@ -43,3 +48,6 @@ jobs:
             
             # Start the application with sudo for port 80
             sudo nohup node app.js > app.log 2>&1 &
+            
+            # Verify the app is running
+            ps aux | grep node
