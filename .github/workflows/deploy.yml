@@ -7,6 +7,11 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      VM_HOST: ${{ secrets.VM_HOST }}
+      VM_USERNAME: ${{ secrets.VM_USERNAME }}
+      VM_PASSWORD: ${{ secrets.VM_PASSWORD }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v3
 
@@ -25,19 +30,45 @@ jobs:
           username: ${{ secrets.VM_USERNAME }}
           password: ${{ secrets.VM_PASSWORD }}
           script: |
-            # Kill existing process if running
-            pkill -f "node app.js" || true
-
             # Prepare app directory
             mkdir -p ~/api
             cd ~/api
 
+            # Kill existing process if running
+            pkill -f "node app.js" || true
+
             # Clean old files
             rm -rf *
 
-            # Clone repo (private, use token)
-            git clone https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} .
-            npm install
+            # Node.js install if not present
+            if ! command -v node > /dev/null; then
+              curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+            fi
 
-            # Start app on port 80 with sudo
+            # Copy files from GitHub runner to VM
+            exit 0 # Placeholder, actual file copy is handled by the next step
+
+      - name: Copy files to VM
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USERNAME }}
+          password: ${{ secrets.VM_PASSWORD }}
+          source: '.'
+          target: '~/api'
+          rm: true
+
+      - name: Install dependencies and start app
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USERNAME }}
+          password: ${{ secrets.VM_PASSWORD }}
+          script: |
+            cd ~/api
+            npm install
             sudo nohup node app.js > app.log 2>&1 &
+
+
+            
